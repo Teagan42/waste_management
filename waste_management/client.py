@@ -277,7 +277,7 @@ class WMClient:
         if "holidayData" in jsonData:
             for holiday in jsonData["holidayData"]:
                 holiday_message = holiday["holidayHours"]
-                holiday_date = holiday["holidayDate"]
+                holiday_date = str(holiday["holidayDate"])
                 holidays.update(impacted_dates(holiday_message, datetime.strptime(holiday_date, "%Y-%m-%d")))
                 holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
         return holidays
@@ -295,7 +295,7 @@ class WMClient:
         if "holidayData" in jsonData:
             for holiday in jsonData["holidayData"]:
                 holiday_message = holiday["holidayHours"]
-                holiday_date = holiday["holidayDate"]
+                holiday_date = str(holiday["holidayDate"])
                 holidays.update(impacted_dates(holiday_message, datetime.strptime(holiday_date, "%Y-%m-%d")))
                 holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
         return holidays
