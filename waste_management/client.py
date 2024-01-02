@@ -42,6 +42,8 @@ def date_range_regex(month: str) -> re.Pattern:
 
 
 def impacted_dates(message: str, holiday: datetime):
+    if NOT_DELAYED_REGEX.search(message):
+        return {}
     month = holiday.strftime("%B")
     matches = date_range_regex(month).search(message)
     if not matches:
@@ -59,7 +61,7 @@ def impacted_dates(message: str, holiday: datetime):
         delay = 1 if matches.group("quanity") == "one" else 2
     return {
         d: d + timedelta(days=delay)
-        for d in [holiday + timedelta(days=i) for i in range(1, dates.days + 1)]
+        for d in [holiday + timedelta(days=i) for i in range(0, dates.days)]
     }
 
 
@@ -235,7 +237,7 @@ class WMClient:
         )
 
         holiday_info = await self.async_get_holidays(account_id, holiday_type="all")
-
+        print(json.dumps({k.strfmt("%m-%d-%Y"): v for k,v in holiday_info.items()}, indent=2))
         pickupDates = []
         for dateStr in jsonData["pickupScheduleInfo"]["pickupDates"]:
             date = datetime.strptime(dateStr, "%m-%d-%Y")
@@ -279,7 +281,7 @@ class WMClient:
                 holiday_message = holiday["holidayHours"]
                 holiday_date = str(holiday["holidayDate"])
                 holidays.update(impacted_dates(holiday_message, datetime.strptime(holiday_date, "%Y-%m-%d")))
-                holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
+         #       holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
         return holidays
 
     def get_holidays(self, account_id, holiday_type="upcoming"):
@@ -297,7 +299,7 @@ class WMClient:
                 holiday_message = holiday["holidayHours"]
                 holiday_date = str(holiday["holidayDate"])
                 holidays.update(impacted_dates(holiday_message, datetime.strptime(holiday_date, "%Y-%m-%d")))
-                holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
+        #        holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
         return holidays
 
     async def async_api_get(self, path="", query=None):
