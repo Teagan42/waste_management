@@ -371,11 +371,7 @@ class WMClient:
         it tells us that certain cities are not impacted. This does not yet attempt to determine if you're in
         an overriden city, but it does attempt to parse the text to determine if there is a delay.
         """
-        holiday = datetime.strptime(holiday_date, "%Y-%m-%d")
-        start_regex = re.compile(f"{holiday.strftime("%B %d")}")
         impacted_dates = {}
-        for pattern in MONTH_REGEX:
-            for match in self._holiday_regex
         # Look for anything that looks like a date, basically NN/NN and find them within the text.
         for match in self._holiday_regex.finditer(message):
             impacted_date_str = match.group(1)
