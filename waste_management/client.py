@@ -237,7 +237,7 @@ class WMClient:
         )
 
         holiday_info = await self.async_get_holidays(account_id, holiday_type="all")
-        print(json.dumps({k.strfmt("%m-%d-%Y"): v for k,v in holiday_info.items()}, indent=2))
+        
         pickupDates = []
         for dateStr in jsonData["pickupScheduleInfo"]["pickupDates"]:
             date = datetime.strptime(dateStr, "%m-%d-%Y")
