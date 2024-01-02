@@ -18,6 +18,50 @@ from .Entities import AccountInfo, Service
 ASYNC_TIMEOUT = 30
 SYNC_TIMEOUT = 10
 
+NOT_DELAYED_REGEX = re.compile("service will not be delayed")
+DELAY_REGEX = re.compile("delayed .+?(?P<quanity>[^ ]+) day")
+MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+]
+
+
+def date_range_regex(month: str) -> re.Pattern:
+    next_month = MONTHS.index(month)
+    return re.compile("(?P<start>" + month + " \d+).+?(?P<end>(" + month + " \d+)|(" + next_month + " \d+)))")
+
+
+def impacted_dates(message: str, holiday: datetime):
+    month = holiday.strftime("%B")
+    matches = date_range_regex(month).search(message)
+    if not matches:
+        return {}
+    end_group = matches.group("end")
+    if month == "December" and "January" in end_group:
+        end = datetime.strptime(f"{end_group} {holiday.year + 1}", "%B %d %Y")
+    else:
+        end = datetime.strptime(f"{end_group} {holiday.year}", "%B %d %Y")
+    dates = end - holiday
+    matches = DELAY_REGEX.search(message)
+    if not matches:
+        delay = 1
+    else:
+        delay = 1 if matches.group("quanity") == "one" else 2
+    return {
+        d: d + timedelta(days=delay)
+        for d in [holiday + timedelta(days=i) for i in range(1, dates.days + 1)]
+    }
+
 
 class WMClient:
     def __init__(self, email, password, client_session=None):
@@ -190,15 +234,12 @@ class WMClient:
             {"lang": "en_US", "checkAlerts": "Y", "userId": self._user_id},
         )
 
-        upcoming_holiday_date = self.__get_holiday_delay_date(jsonData)
-        holiday_info = None
-        if upcoming_holiday_date is not None:
-            holiday_info = await self.async_get_holidays(account_id)
+        holiday_info = await self.async_get_holidays(account_id, holiday_type="all")
 
         pickupDates = []
         for dateStr in jsonData["pickupScheduleInfo"]["pickupDates"]:
             date = datetime.strptime(dateStr, "%m-%d-%Y")
-            if date == upcoming_holiday_date and date in holiday_info.keys():
+            if date in holiday_info.keys():
                 date = holiday_info[date]
             pickupDates.append(date)
 
@@ -212,26 +253,23 @@ class WMClient:
             {"lang": "en_US", "checkAlerts": "Y", "userId": self._user_id},
         )
 
-        upcoming_holiday_date = self.__get_holiday_delay_date(jsonData)
-        holiday_info = None
-        if upcoming_holiday_date is not None:
-            holiday_info = self.get_holidays(account_id)
+        holiday_info = self.get_holidays(account_id, holiday_type="all")
 
         pickupDates = []
         for dateStr in jsonData["pickupScheduleInfo"]["pickupDates"]:
             date = datetime.strptime(dateStr, "%m-%d-%Y")
-            if date == upcoming_holiday_date and date in holiday_info.keys():
+            if date in holiday_info.keys():
                 date = holiday_info[date]
             pickupDates.append(date)
 
         return pickupDates
 
-    async def async_get_holidays(self, account_id):
+    async def async_get_holidays(self, account_id, holiday_type="upcoming"):
         self._apiKey = API_KEY_HOLIDAYS_USER_BY_ADDRESS
 
         jsonData = await self.async_api_get(
             f"user/{self._user_id}/account/{account_id}/holidays",
-            {"lang": "en_US", "type": "upcoming"},
+            {"lang": "en_US", "type": holiday_type},
         )
 
         holidays = {}
@@ -239,15 +277,17 @@ class WMClient:
         if "holidayData" in jsonData:
             for holiday in jsonData["holidayData"]:
                 holiday_message = holiday["holidayHours"]
+                holiday_date = holiday["holidayDate"]
+                holidays.update(impacted_dates(holiday_message, datetime.strptime("%Y-%m-%d")))
                 holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
         return holidays
 
-    def get_holidays(self, account_id):
+    def get_holidays(self, account_id, holiday_type="upcoming"):
         self._apiKey = API_KEY_HOLIDAYS_USER_BY_ADDRESS
 
         jsonData = self.api_get(
             f"user/{self._user_id}/account/{account_id}/holidays",
-            {"lang": "en_US", "type": "upcoming"},
+            {"lang": "en_US", "type": holiday_type},
         )
 
         holidays = {}
@@ -255,6 +295,8 @@ class WMClient:
         if "holidayData" in jsonData:
             for holiday in jsonData["holidayData"]:
                 holiday_message = holiday["holidayHours"]
+                holiday_date = holiday["holidayDate"]
+                holidays.update(impacted_dates(holiday_message, datetime.strptime("%Y-%m-%d")))
                 holidays.update(self.__parse_holiday_impacted_dates(holiday_message))
         return holidays
 
@@ -329,7 +371,11 @@ class WMClient:
         it tells us that certain cities are not impacted. This does not yet attempt to determine if you're in
         an overriden city, but it does attempt to parse the text to determine if there is a delay.
         """
+        holiday = datetime.strptime(holiday_date, "%Y-%m-%d")
+        start_regex = re.compile(f"{holiday.strftime("%B %d")}")
         impacted_dates = {}
+        for pattern in MONTH_REGEX:
+            for match in self._holiday_regex
         # Look for anything that looks like a date, basically NN/NN and find them within the text.
         for match in self._holiday_regex.finditer(message):
             impacted_date_str = match.group(1)
