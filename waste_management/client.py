@@ -38,7 +38,7 @@ MONTHS = [
 
 def date_range_regex(month: str) -> re.Pattern:
     next_month = MONTHS.index(month)
-    return re.compile("(?P<start>" + month + " \d+).+?(?P<end>(" + month + " \d+)|(" + next_month + " \d+)))")
+    return re.compile("(?P<start>" + month + " \d+).+?(?P<end>(" + month + " \d+)|(" + MONTHS[next_month] + " \d+))")
 
 
 def impacted_dates(message: str, holiday: datetime):
